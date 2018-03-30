@@ -1,7 +1,7 @@
 import shopify from '@/utils/api-client'
 
 const state = {
-  orders: [],
+  ordersKeyedByNumber: {},
   loading: false
 }
 
@@ -10,22 +10,35 @@ const mutations = {
     state.loading = bool
   },
   ADD_ITEMS (state, items) {
-    state.orders = items
+    state.ordersKeyedByNumber = items
   }
 }
 
 const getters = {
   find: state => (params = {}) => {
-    return state.orders
+    const values = []
+    for (let key in state.ordersKeyedByNumber) {
+      values.push(state.ordersKeyedByNumber[key])
+    }
+
+    return values
+  },
+
+  get: state => (id, params = {}) => {
+    return state.ordersKeyedByNumber[id] ? state.ordersKeyedByNumber[id] : null
   }
 }
 
 const actions = {
   find ({ commit }, url) {
     commit('LOADING', true)
-    shopify.order.list({ limit: 5, status: 'any', fields: 'id,email,total_price,billing_address,line_items,financial_status,confirmed' })
+    shopify.order.list({ limit: 5, fulfillment_status: 'unshipped', fields: 'id,email,order_number,total_price,shipping_address,line_items,financial_status,confirmed' })
       .then(response => {
-        commit('ADD_ITEMS', response)
+        const map = response.reduce((map, current) => {
+          map[current.order_number] = current
+          return map
+        }, {})
+        commit('ADD_ITEMS', map)
         commit('LOADING', false)
       })
   }
